@@ -13,7 +13,7 @@ import requests
 @click.argument('testfile', type=click.Path(exists=True))
 @click.argument('indy_url')
 @click.option('--delay', '-D', help='Delay between starting builds')
-def build(testfile, indy_url, delay):
+def build(testfile, indy_url, delay=0):
     with open(testfile) as f:
         yaml = YAML(typ='safe')
         build_config = yaml.load(f)
