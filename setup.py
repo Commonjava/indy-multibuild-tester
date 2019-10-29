@@ -6,9 +6,9 @@ import sys
 setup(
     zip_safe=True,
     use_2to3=False,
-    name='mb',
-    version='0.0.2',
-    long_description='Orchestrate build performance tests against Indy with various configuration options',
+    name='indyperf',
+    version='0.0.1',
+    long_description='Orchestrate a build performance test against Indy with various configuration options',
     classifiers=[
       "Development Status :: 3 - Alpha",
       "Intended Audience :: Developers",
@@ -25,13 +25,7 @@ setup(
     packages=find_packages(exclude=['ez_setup', 'examples', 'tests']),
     install_requires=[
       "requests",
-      "ruamel.yaml",
-      "click",
-    ],
-    entry_points={
-      'console_scripts': [
-        'multibuild = mb:build',
-      ],
-    }
+      "ruamel.yaml"
+    ]
 )
 

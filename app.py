@@ -8,7 +8,8 @@ import json
 
 from ruamel.yaml import YAML
 from datetime import datetime as dt
-from urlparse import urlparse
+# from urlparse import urlparse
+from urllib.parse import urlparse
 
 ENVAR_TEST_CONFIG = 'test_configfile'
 ENVAR_BUILD_NAME = 'build_name'
@@ -46,7 +47,7 @@ DEFAULT_STORES = [
     },
     {
           'type': 'group', 
-          'name': params['brew_proxies']
+          'name': 'brew_proxies'
     }
 ]
 
@@ -141,47 +142,46 @@ def run_build():
     NOTE: This process should mimic the calls and sequence executed by PNC as closely as possible!
     """
 
-    try:
-        (test_config, build_name, indy_url, proxy_port) = read_test_config()
-        (build, src_basedir, promote_by_path, stores) = validate_and_extract_build(test_config, build_name)
+    # try:
+    (test_config, build_name, indy_url, proxy_port) = read_test_config()
+    (build, src_basedir, promote_by_path, stores) = validate_and_extract_build(test_config, build_name)
 
-        tid_base = f"build_{build_name}"
+    tid_base = f"build_{build_name}"
 
-        project_src_dirname = build.get(BUILD_SOURCE_DIR) or build_name
-        project_src_dir = os.path.join( src_base, project_src_dirname)
+    project_src_dirname = build.get(BUILD_SOURCE_DIR) or build_name
+    project_src_dir = os.path.join( src_basedir, project_src_dirname)
 
-        git_branch = build.get(BUILD_GIT_BRANCH) or 'master'
-        builddir = setup_builddir(os.getcwd(), project_src_dir, git_branch, tid_base)
+    git_branch = build.get(BUILD_GIT_BRANCH) or 'master'
+    builddir = setup_builddir(os.getcwd(), project_src_dir, git_branch, tid_base)
 
-        tid = os.path.basename(builddir)
-        parsed = urlparse(indy_url)
-        params = {
-            'url':indy_url, 
-            'id': tid, 
-            'host': parsed.hostname, 
-            'port': parsed.port, 
-            'proxy_port': proxy_port
-        }
+    tid = os.path.basename(builddir)
+    parsed = urlparse(indy_url)
+    params = {
+        'url':indy_url, 
+        'id': tid, 
+        'host': parsed.hostname, 
+        'port': parsed.port, 
+        'proxy_port': proxy_port
+    }
 
-        create_repos_and_settings(builddir, stores, params);
+    create_repos_and_settings(builddir, stores, params);
 
-        do_pme(builddir)
-        do_build(builddir)
-        seal_folo_report(params)
+    do_pme(builddir)
+    do_build(builddir)
+    seal_folo_report(params)
 
-        folo_report = pull_folo_report(params)
-        promote_deps_by_path(folo_report, params)
+    folo_report = pull_folo_report(params)
+    promote_deps_by_path(folo_report, params)
 
-        if promote_by_path is True:
-            promote_output_by_path(params)
-        else:
-            promote_output_by_group(params)
+    if promote_by_path is True:
+        promote_output_by_path(params)
+    else:
+        promote_output_by_group(params)
 
-        cleanup_build_group(params)
+    cleanup_build_group(params)
 
-    except (KeyboardInterrupt,SystemExit,Exception) as e:
-        print(e)
-        break
+    # except (KeyboardInterrupt,SystemExit,Exception) as e:
+    #     print(e)
 
 def read_test_config():
     """ Read the test configuration that this worker should run, from envars. """
@@ -220,7 +220,7 @@ def validate_and_extract_build(test_config, build_name):
 
     builds = test_config.get(TEST_BUILDS_SECTION) or {}
     build = builds.get(build_name)
-    src_base = test_config.get(TEST_SOURCE_BASEDIR) or os.getcwd()
+    src_basedir = test_config.get(TEST_SOURCE_BASEDIR) or os.getcwd()
     promote_by_path = test_config.get(TEST_PROMOTE_BY_PATH_FLAG) or True
     base_stores = test_config.get(TEST_STORES) or DEFAULT_STORES
 
@@ -231,13 +231,13 @@ def validate_and_extract_build(test_config, build_name):
     return (build, src_basedir, promote_by_path, base_stores)
 
 
-def setup_builddir(builds_dir, projectdir, branch, tid_base, idx):
+def setup_builddir(builds_dir, projectdir, branch, tid_base):
     """ Setup physical directory for executing the build, then checkout the sources there. """
 
     if os.path.isdir(builds_dir) is False:
         os.makedirs(builds_dir)
 
-    builddir="%s/%s-%s-%s" % (builds_dir, tid_base, dt.now().strftime("%Y%m%dT%H%M%S"), idx)
+    builddir="%s/%s-%s" % (builds_dir, tid_base, dt.now().strftime("%Y%m%dT%H%M%S"))
 
     run_cmd("git clone -l -b %s file://%s %s" % (branch, projectdir, builddir))
     
@@ -295,14 +295,15 @@ def create_missing_stores(stores, params):
         store_type = store['type']
         package_type = store.get('package_type')
         if package_type is None:
-            store['package_type'] = 'maven'
+            package_type = 'maven'
+            store['package_type'] = package_type
 
         name = store['name']
         store['key'] = f"{package_type}:{store_type}:{name}"
         store['doctype'] = store_type
         store['disabled'] = False
 
-        base_url = f"{params['url']}/api/admin/{package_type}/{store_type}"
+        base_url = f"{params['url']}/api/admin/stores/{package_type}/{store_type}"
         resp = requests.head(f"{base_url}/{store['name']}")
         if resp.status_code == 404:
             print("POSTing: %s" % json.dumps(store, indent=2))
